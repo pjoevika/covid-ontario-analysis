@@ -1,11 +1,11 @@
-Title: Life Expectancy Regression — STAA57
+Title: COVID-19 PHU Analysis — STAA57
 
-Short description: Regression model predicting life expectancy across 150+ countries using WHO and World Bank indicators. 
+Short description: Exploratory analysis of COVID-19 testing, cases, and mortality across Ontario Public Health Units (PHUs). The project includes data cleaning, descriptive analysis, hypothesis tests, and multi-panel visualizations to communicate regional trends.
 
-Files: Notebook (R) — life_expectancy_analysis.ipynb; PDF summary — life_expectancy_summary.pdf
+Files: Notebook (R) — Dataset_Description_STAA57.Rmd, FinalReport_STAA57.Rmd; PDF summary — Dataset_Description_STAA57.pdf, FinalReport_STAA57.pdf
 
 How to view: Open the notebook on GitHub or download the PDF.
 
 Key tools: R, ggplot2, RMarkdown.
 
-Contact: your.email@example.com | LinkedIn: https://www.linkedin.com/in/YourName
+Contact: pjoevika@gmail.com | LinkedIn: https://www.linkedin.com/in/vika-permata-joe
