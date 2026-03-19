@@ -1,4 +1,4 @@
-Title: Life Expectancy Regression — STAC67
+Title: Life Expectancy Regression — STAA57
 
 Short description: Regression model predicting life expectancy across 150+ countries using WHO and World Bank indicators. 
 
