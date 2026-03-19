@@ -1,0 +1,181 @@
+---
+title: "__Status of COVID-19 cases in Ontario by Public Health Unit (PHU)__"
+author: "Jeanice () | Rahma Nur Jannati (1009715499) | Vika Permata Joe (1010309649)"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE, message=FALSE}
+# loading necessary libraries
+library(tidyverse)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(ggmap)
+library(knitr)
+library(lubridate)
+library(rpart)
+library(randomForest)
+library(jpeg)
+
+```{r, include=FALSE, message=FALSE}
+# loading data
+covid_data <- read.csv("cases_by_status_and_phu.csv")
+vaccination_data <- read.csv("vaccines_by_age_phu.csv")
+
+# Rename the column 'PHU_Name' to 'PHU_NAME'
+vaccination_data <- vaccination_data %>%
+  rename(PHU_NAME = PHU.name)
+
+# Check the structure of both datasets
+str(covid_data)
+str(vaccination_data)
+
+# Merge the datasets based on PHU_Name
+merged_data <- merge(covid_data, vaccination_data, by = covid_data$PHU_NAME, all = TRUE)
+
+# Check the structure of the merged dataset
+str(merged_data)
+
+# convert 'File_date' from character to Date format in "year-month-day" format
+data$FILE_DATE <- as.Date(data$FILE_DATE, format = "%Y-%m-%d")
+
+# filter data for dates within range 2022-03-11 to 2022-12-01
+new_data <- data %>%
+  filter(FILE_DATE >= as.Date("2022-03-11") & FILE_DATE <= as.Date("2022-11-30")) %>%
+  select(!contains("ARCHIVED")) %>%  # select all variables except 'archived_resolved_cases' and 'archived_deaths'
+  filter(PHU_NUM %in% c(2238, 2242, 2243,2263))  # select only PHU 1, 2, 3, and 4
+```
+# Introduction
+This report is based on a dataset Status of COVID-19 cases in Ontario by Public Health Unit (PHU) sourced from Ontario Data Catalogue. The data is collected by Public Health Units (PHUs) in Ontario and The Ontario Ministry of Health with the aim of tracking COVID-19 cases across different public health units in Ontario. The dataset provides information on the status of COVID-19 cases in Ontario, including the number of active cases, resolved cases, and deaths, broken down by Public Health Unit. It serves as a valuable resource for monitoring the spread of COVID-19 and assessing the effectiveness of public health interventions and strategies. The dataset covers a specific time period with daily snapshots of COVID-19 testing and cases reported across various Public Health Units in Ontario. It includes both current and archived data on COVID-19 cases.
+
+However, only data recorded after March 11, 2022, are included in the analysis of this report. This decision was made due to the change of the methodology used to count COVID-19 deaths by excluding deaths not caused by COVID-19, thereby ensuring a more accurate representation of the impact of the virus. As a result of the methodological change, the columns "Resolved_Cases" and "Deaths" represent data recorded after March 11, 2022, while the columns "Archived_Resolved_Cases" and "Archived_Deaths" represent data posted publicly prior to the methodological change.
+
+```{r, echo=FALSE, eval=TRUE}
+
+variables <- c("File_date", "PHU_Name", "PHU_Num", "Active_Cases", "Resolved_Cases",
+               "Deaths")
+
+types <- sapply(new_data, class)
+descriptions <- c("The date of the reported data", 
+                  "The name of the Public Health Unit (PHU) in Ontario", 
+                  "A unique identifier for each Public Health Unit", 
+                  "Number of active COVID-19 cases", 
+                  "Number of resolved COVID-19 cases after March 11, 2022 (excluding deaths not caused by COVID)", 
+                  "Number of deaths due to COVID-19 after March 11, 2022")
+summary <- data.frame(Variable = variables, Types = types, Description = descriptions)
+kable(summary, row.names = FALSE, caption="Table 1:Variable Description")
+```
+
+# Purpose
+This report aims to answer the question, __How have the COVID-19 testing and case trends evolved across Public Health Units (PHUs) in Ontario since March 11, 2022, and what factors are associated with variations in the number of active cases, resolved cases, and deaths?__
+
+# Background
+The Status of COVID-19 cases in Ontario by Public Health Unit (PHU) dataset offers critical insights into the state of the pandemic within the region. As COVID-19 continues to pose significant challenges to public health systems worldwide, understanding the distribution and trends of cases across different Public Health Units (PHUs) in Ontario is paramount for effective response and intervention strategies.
+
+The dataset provides comprehensive information on key COVID-19 metrics, including the number of active cases, resolved cases, and deaths, reported by PHUs in Ontario. By analyzing these data points, we can gain valuable insights into the dynamics of COVID-19 transmission and its impact on various regions within the province.
+
+To gain a deeper understanding of COVID-19 trends across PHUs in Ontario, we begin by examining summary statistics for key variables within the dataset. Table 1 presents an overview of the central tendencies and variability of COVID-19 metrics, including mean, median, minimum, and maximum values for active cases, resolved cases, and deaths recorded within the region.
+
+```{r, echo=FALSE, eval=TRUE}
+# summary statistics
+summary_table <- data.frame(
+  Variable = c("Active_cases", "Resolved_cases", "Deaths"),
+  Mean = c(mean(new_data$ACTIVE_CASES), mean(new_data$RESOLVED_CASES), mean(new_data$DEATHS)),
+  Median = c(median(new_data$ACTIVE_CASES), median(new_data$RESOLVED_CASES), median(new_data$DEATHS)),
+  Standard_Deviation = c(sd(new_data$ACTIVE_CASES), sd(new_data$RESOLVED_CASES), sd(new_data$DEATHS)),
+  Min = c(min(new_data$ACTIVE_CASES), min(new_data$RESOLVED_CASES), min(new_data$DEATHS)),
+  Max = c(max(new_data$ACTIVE_CASES), max(new_data$RESOLVED_CASES), max(new_data$DEATHS))
+)
+
+# Generate the table
+kable(summary_table, row.names = TRUE, caption = "Table 2: Summary statistics for active cases, resolved cases, and deaths.")
+```
+
+Next, we turn our attention to visualizing the trends in COVID-19 cases across PHUs in Ontario. Figure 1 illustrates the trajectory of active COVID-19 cases over time. This line plot captures the ebb and flow of case counts, providing insights into the temporal variations experienced by different regions.
+
+
+```{r, echo=FALSE, fig.width=7,fig.height=3}
+# create line plot for active cases by PHU
+ggplot(new_data, aes(x = FILE_DATE, y = ACTIVE_CASES, group = PHU_NAME, color = PHU_NAME)) +
+  geom_line() +
+  labs(title = "Graph 1: Trends in Active COVID-19 Cases by PHU",
+       x = "Date",
+       y = "Active Cases") +
+  theme(plot.title = element_text(face = "bold",
+                                  size = 12,
+                                  hjust = 0.5) ,
+        axis.title = element_text(size = 10),
+        axis.text = element_text(face = "italic"))
+```
+
+
+The fluctuating pattern observed in Figure 1 underscores the dynamic nature of COVID-19 transmission across PHUs in Ontario. Peaks and valleys in case counts suggest varying levels of contagion and highlight areas of potential concern for public health authorities.
+
+Continuing our analysis, Figure 2 showcases the trends in resolved COVID-19 cases over time. This visualization reveals a general upward trajectory, indicating a progressive resolution of COVID-19 infections across PHUs in Ontario.
+
+
+```{r, echo=FALSE, fig.width=7,fig.height=3}
+# create line plot for resolved cases by PHU
+ggplot(new_data, aes(x = FILE_DATE, y = RESOLVED_CASES, group = PHU_NAME, color = PHU_NAME)) +
+  geom_line() +
+  labs(title = "Graph 2: Trends in Resolved COVID-19 Cases by PHU",
+       x = "Date",
+       y = "Resolved Cases") +
+  theme(plot.title = element_text(face = "bold",
+                                  size = 12,
+                                  hjust = 0.5) ,
+        axis.title = element_text(size = 10),
+        axis.text = element_text(face = "italic"))
+```
+
+
+The increasing trend observed in Figure 2 reflects the collective efforts of public health initiatives and medical interventions in managing and containing the spread of COVID-19 within the region.
+
+Lastly, Figure 3 outlines the trends in COVID-19 deaths recorded across PHUs in Ontario. While fluctuations may occur, the overall stability in mortality rates underscores the consistent impact of the virus across different regions.
+
+
+```{r, echo=FALSE, fig.width=7,fig.height=3}
+# create line plot for deaths by PHU
+ggplot(new_data, aes(x = FILE_DATE, y = DEATHS, group = PHU_NAME, color = PHU_NAME)) +
+  geom_line() +
+  labs(title = "Graph 3: Trends in COVID-19 Deaths by PHU",
+       x = "Date",
+       y = "Deaths") +
+  theme(plot.title = element_text(face = "bold",
+                                  size = 12,
+                                  hjust = 0.5) ,
+        axis.title = element_text(size = 10),
+        axis.text = element_text(face = "italic"))
+```
+
+
+The line plot demonstrates the trends in COVID-19 deaths across PHUs in Ontario. While the number of deaths may vary between regions, we observe a relatively stable trend over time, indicating consistent mortality patterns across different areas.
+
+These visualizations offer a nuanced understanding of the COVID-19 landscape in Ontario, providing valuable insights into the evolving trends and patterns observed across PHUs. By analyzing these trends, we can identify areas of concern and assess the effectiveness of public health interventions in mitigating the spread of the virus within the region.
+
+```{r, echo=FALSE, eval=FALSE}
+#summary by clinic
+phu_data = new_data %>% group_by(PHU_NAME) %>% summarise(TOTAL_RESOLVED=sum(RESOLVED_CASES), TOTAL_DEATH=sum(DEATHS))
+phu_data
+```
+
+### Graphs
+```{r, echo=FALSE, eval=FALSE}
+# Aggregate data by month
+data_monthly <- data %>% group_by(Month = format(FILE_DATE)) %>% summarise(Total_Active_Cases = sum(ACTIVE_CASES))
+
+# Plot the aggregated data
+plot <- ggplot(data_monthly, aes(x = as.Date(Month), y = Total_Active_Cases)) +
+          geom_line() +
+          labs(title = "Trends in Active Cases Over Time", 
+               x = "Date",
+               y = "Total Active Cases") +
+          scale_x_date(date_labels = "%Y-%m", date_breaks = "1 month")
+
+print(plot)
+```
+
+
+
